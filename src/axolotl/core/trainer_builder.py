@@ -25,6 +25,7 @@ from datasets import Dataset
 from peft.optimizers import create_loraplus_optimizer
 from torch import nn
 from torch.optim.lr_scheduler import OneCycleLR
+import torch.nn.functional as F
 from torch.utils.data import BatchSampler, DataLoader, RandomSampler, SequentialSampler
 from transformers import (
     EarlyStoppingCallback,
@@ -410,6 +411,13 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         *_args,
         bench_data_collator=None,
         eval_data_collator=None,
+        training_mode=None,
+        teacher_model=None,
+        alpha=None,
+        beta=None,
+        temperature=None,
+        prune_start_index=None,
+        prune_end_index=None,
         **kwargs,
     ):
         self.bench_data_collator = bench_data_collator
@@ -417,6 +425,15 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         super().__init__(*_args, **kwargs)
         self.train_data_collator = self.data_collator
         self._stored_metrics = defaultdict(lambda: defaultdict(list))
+        self.training_mode = training_mode
+        self.teacher_model = teacher_model
+        self.alpha = alpha
+        self.beta = beta
+        self.temperature = temperature
+        self.prune_start_index = prune_start_index
+        self.prune_end_index = prune_end_index
+        self._move_model_to_device(self.teacher_model,self.model.device)
+        self.teacher_model.eval()
         if self.args.orpo_alpha:
             self.loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
 
@@ -697,6 +714,13 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
                 return_outputs=return_outputs,
                 num_items_in_batch=num_items_in_batch,
             )
+        elif self.args.training_mode is not None:
+            return self.kd_compute_loss(
+                model,
+                inputs,
+                return_outputs=return_outputs,
+                num_items_in_batch=num_items_in_batch,
+            )
         return super().compute_loss(
             model,
             inputs,
@@ -755,6 +779,48 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
             "attention_mask": attention_mask,
             "prompt_attention_mask": concatenated_batch["prompt_attention_mask"],
         }
+
+    def kd_compute_loss(
+        self,
+        model,
+        inputs,
+        return_outputs=False,
+        num_items_in_batch=None,  # pylint: disable=unused-argument
+    ):
+        if self.args.training_mode == "kd_l":
+            outputs_student = model(output_hidden_states=True, **inputs)
+            new_module_hidden_state = outputs_student["hidden_states"][self.prune_start_index]
+        else:
+            outputs_student = model(**inputs)
+        student_loss = outputs_student.loss
+        # compute teacher output
+        with torch.no_grad():
+            if self.args.training_mode == "kd_l":
+                outputs_teacher = self.teacher_model(output_hidden_states=True, **inputs)
+                pruned_module_hidden_state = outputs_teacher["hidden_states"][self.prune_end_index]
+            else:
+                outputs_teacher = self.teacher_model(**inputs)
+        
+        # assert size
+        assert outputs_student.logits.size() == outputs_teacher.logits.size()
+        
+        # Soften probabilities and compute distillation loss
+        loss_function = nn.KLDivLoss(reduction="batchmean")
+        loss_logits = (loss_function(
+            F.log_softmax(outputs_student.logits / self.args.temperature, dim=-1),
+            F.softmax(outputs_teacher.logits / self.args.temperature, dim=-1)) * (self.args.temperature ** 2))
+        # Return weighted student loss
+        if self.args.training_mode == "kd_l":
+            layer_loss_function = nn.L1Loss()
+            layer_loss = layer_loss_function(
+                F.softmax(new_module_hidden_state), 
+                F.softmax(pruned_module_hidden_state)
+            )
+            loss = self.args.alpha * student_loss + (1. - self.args.alpha) * loss_logits + self.beta * layer_loss
+        else:
+            loss = self.args.alpha * student_loss + (1. - self.args.alpha) * loss_logits
+
+        return (loss, outputs_student) if return_outputs else loss
 
     def orpo_compute_custom_loss(self, logits, labels):
         logits = logits.contiguous()
@@ -1124,6 +1190,7 @@ class TrainerBuilderBase(abc.ABC):
     _eval_dataset = None
     _model_ref = None
     _peft_config = None
+    _teacher_model = None
 
     def __init__(self, cfg, model, tokenizer, processor=None):
         self.cfg = cfg
@@ -1136,6 +1203,14 @@ class TrainerBuilderBase(abc.ABC):
         # model.push_to_hub instad of  trainer.push_to_hub.
         if hasattr(model, "add_model_tags"):
             model.add_model_tags(["axolotl"])
+
+    @property
+    def teacher_model(self):
+        return self._teacher_model
+    
+    @teacher_model.setter
+    def teacher_model(self, model):
+        self._teacher_model = model
 
     @property
     def model_ref(self):
@@ -1759,15 +1834,33 @@ class HFCausalTrainerBuilder(TrainerBuilderBase):
         else:
             trainer_kwargs["tokenizer"] = self.tokenizer
 
-        trainer = trainer_cls(
-            model=self.model,
-            train_dataset=self.train_dataset,
-            eval_dataset=self.eval_dataset,
-            args=training_args,
-            data_collator=self.build_collator(training_args, **data_collator_kwargs),
-            callbacks=self.get_callbacks(),
-            **trainer_kwargs,
-        )
+        if self.cfg.training_mode is not None:
+            trainer = trainer_cls(
+                model=self.model,
+                train_dataset=self.train_dataset,
+                eval_dataset=self.eval_dataset,
+                args=training_args,
+                data_collator=self.build_collator(training_args, **data_collator_kwargs),
+                callbacks=self.get_callbacks(),
+                training_mode=self.cfg.training_mode,
+                teacher_model=self.teacher_model,
+                alpha=self.cfg.alpha,
+                beta=self.cfg.beta,
+                temperature=self.cfg.temperature,
+                prune_start_index=self.cfg.prune_start_index,
+                prune_end_index=self.cfg.prune_end_index,
+                **trainer_kwargs,
+            )
+        else:
+            trainer = trainer_cls(
+                model=self.model,
+                train_dataset=self.train_dataset,
+                eval_dataset=self.eval_dataset,
+                args=training_args,
+                data_collator=self.build_collator(training_args, **data_collator_kwargs),
+                callbacks=self.get_callbacks(),
+                **trainer_kwargs,
+            )
         trainer = self.hook_post_create_trainer(trainer)
         for callback in self.get_post_trainer_create_callbacks(trainer):
             trainer.add_callback(callback)

@@ -505,6 +505,9 @@ def setup_trainer(
         trainer_builder = HFRLTrainerBuilder(cfg, model[0], tokenizer, processor)
         trainer_builder.model_ref = model[1]
         trainer_builder.peft_config = model[2]
+    elif cfg.training_mode in ["kd", "kd_l"]:
+        trainer_builder = HFCausalTrainerBuilder(cfg, model[0], tokenizer, processor)
+        trainer_builder.teacher_model = model[1]
     else:
         trainer_builder = HFCausalTrainerBuilder(cfg, model[0], tokenizer, processor)
 
