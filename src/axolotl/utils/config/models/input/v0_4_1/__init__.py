@@ -566,6 +566,18 @@ class GradioConfig(BaseModel):
     gradio_max_new_tokens: Optional[int] = None
     gradio_temperature: Optional[float] = None
 
+class DistillationConfig(BaseModel):
+
+    training_mode: Optional[str] = None
+    teacher_model: Optional[str] = None
+    only_train_extra_module: Optional[bool] = None
+    prune_start_index: Optional[int] = None
+    prune_end_index: Optional[int] = None
+    temperature: Optional[float] = None
+    alpha: Optional[float] = None
+    beta: Optional[float] = None
+    gamma: Optional[float] = None
+
 
 # pylint: disable=too-many-public-methods,too-many-ancestors
 class AxolotlInputConfig(
@@ -581,6 +593,7 @@ class AxolotlInputConfig(
     GradioConfig,
     RemappedParameters,
     DeprecatedParameters,
+    DistillationConfig,
     BaseModel,
 ):
     """wrapper of all config options"""

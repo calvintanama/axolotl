@@ -413,8 +413,10 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         eval_data_collator=None,
         training_mode=None,
         teacher_model=None,
+        sequence_len=None,
         alpha=None,
         beta=None,
+        gamma=None,
         temperature=None,
         prune_start_index=None,
         prune_end_index=None,
@@ -427,13 +429,17 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         self._stored_metrics = defaultdict(lambda: defaultdict(list))
         self.training_mode = training_mode
         self.teacher_model = teacher_model
+        self.sequence_len = sequence_len
         self.alpha = alpha
         self.beta = beta
+        self.gamma = gamma
         self.temperature = temperature
         self.prune_start_index = prune_start_index
         self.prune_end_index = prune_end_index
-        self._move_model_to_device(self.teacher_model,self.model.device)
-        self.teacher_model.eval()
+        if self.teacher_model is not None:
+            
+            # self._move_model_to_device(self.teacher_model,self.model.device)
+            self.teacher_model.eval()
         if self.args.orpo_alpha:
             self.loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
 
@@ -707,6 +713,10 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         #     outputs = model(**inputs)
         #     loss = trainer_weighted_loss(outputs, labels, shift_labels=True)
         #     return (loss, outputs) if return_outputs else loss
+        print("(Trainer) student model device ", self.model.device)
+        print("(Trainer) teacher model device ", self.teacher_model.device)
+        print("(Trainer) training mode ", self.training_mode)
+
         if self.args.orpo_alpha:
             return self.orpo_compute_loss(
                 model,
@@ -714,7 +724,7 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
                 return_outputs=return_outputs,
                 num_items_in_batch=num_items_in_batch,
             )
-        elif self.args.training_mode is not None:
+        elif self.training_mode is not None:
             return self.kd_compute_loss(
                 model,
                 inputs,
@@ -787,17 +797,19 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         return_outputs=False,
         num_items_in_batch=None,  # pylint: disable=unused-argument
     ):
-        if self.args.training_mode == "kd_l":
+        if self.training_mode == "kd_l":
             outputs_student = model(output_hidden_states=True, **inputs)
-            new_module_hidden_state = outputs_student["hidden_states"][self.prune_start_index]
+            new_module_hidden_state = outputs_student.hidden_states[self.prune_start_index+1]
         else:
             outputs_student = model(**inputs)
         student_loss = outputs_student.loss
+
+        print("student loss ", student_loss)
         # compute teacher output
         with torch.no_grad():
-            if self.args.training_mode == "kd_l":
+            if self.training_mode == "kd_l":
                 outputs_teacher = self.teacher_model(output_hidden_states=True, **inputs)
-                pruned_module_hidden_state = outputs_teacher["hidden_states"][self.prune_end_index]
+                pruned_module_hidden_state = outputs_teacher.hidden_states[self.prune_end_index+1]
             else:
                 outputs_teacher = self.teacher_model(**inputs)
         
@@ -807,18 +819,20 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         # Soften probabilities and compute distillation loss
         loss_function = nn.KLDivLoss(reduction="batchmean")
         loss_logits = (loss_function(
-            F.log_softmax(outputs_student.logits / self.args.temperature, dim=-1),
-            F.softmax(outputs_teacher.logits / self.args.temperature, dim=-1)) * (self.args.temperature ** 2))
+            F.log_softmax(outputs_student.logits / self.temperature, dim=-1),
+            F.softmax(outputs_teacher.logits / self.temperature, dim=-1)) * (self.temperature ** 2)) / self.sequence_len
+        print("logits loss ", loss_logits)
         # Return weighted student loss
-        if self.args.training_mode == "kd_l":
+        if self.training_mode == "kd_l":
             layer_loss_function = nn.L1Loss()
             layer_loss = layer_loss_function(
-                F.softmax(new_module_hidden_state), 
-                F.softmax(pruned_module_hidden_state)
+                new_module_hidden_state, 
+                pruned_module_hidden_state
             )
-            loss = self.args.alpha * student_loss + (1. - self.args.alpha) * loss_logits + self.beta * layer_loss
+            print("layer loss ", layer_loss)
+            loss = self.alpha * student_loss + self.beta * loss_logits + self.gamma * layer_loss
         else:
-            loss = self.args.alpha * student_loss + (1. - self.args.alpha) * loss_logits
+            loss = self.alpha * student_loss + self.beta * loss_logits
 
         return (loss, outputs_student) if return_outputs else loss
 
@@ -1844,8 +1858,10 @@ class HFCausalTrainerBuilder(TrainerBuilderBase):
                 callbacks=self.get_callbacks(),
                 training_mode=self.cfg.training_mode,
                 teacher_model=self.teacher_model,
+                sequence_len=self.cfg.sequence_len,
                 alpha=self.cfg.alpha,
                 beta=self.cfg.beta,
+                gamma=self.cfg.gamma,
                 temperature=self.cfg.temperature,
                 prune_start_index=self.cfg.prune_start_index,
                 prune_end_index=self.cfg.prune_end_index,

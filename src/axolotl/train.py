@@ -15,7 +15,7 @@ from accelerate.utils import save_fsdp_model
 from datasets import Dataset
 from peft import PeftModel
 from pkg_resources import get_distribution  # type: ignore
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from transformers import PreTrainedModel, PreTrainedTokenizer, AutoModelForCausalLM, AutoConfig
 from transformers.integrations.deepspeed import is_deepspeed_zero3_enabled
 
 from axolotl.common.cli import TrainerCliArgs
@@ -25,6 +25,7 @@ from axolotl.utils.dict import DictDefault
 from axolotl.utils.freeze import freeze_layers_except
 from axolotl.utils.models import load_model, load_processor, load_tokenizer
 from axolotl.utils.trainer import setup_trainer
+from axolotl.utils.custom_model import register_to_auto_class
 
 try:
     from optimum.bettertransformer import BetterTransformer
@@ -67,6 +68,12 @@ def train(
         f"loading tokenizer... {cfg.tokenizer_config or cfg.base_model_config}",
         main_process_only=True,
     )
+
+    #print(cfg)
+
+    if cfg.training_mode and cfg.training_mode in ["kd", "kd_l"]:
+        register_to_auto_class()
+
     tokenizer = load_tokenizer(cfg)
     processor = None
     if cfg.is_multimodal:
@@ -119,15 +126,35 @@ def train(
     if cfg.unfrozen_parameters:
         freeze_layers_except(model, cfg.unfrozen_parameters)
 
-    trainer = setup_trainer(
-        cfg,
-        train_dataset,
-        eval_dataset,
-        (model, model_ref, peft_config),
-        tokenizer,
-        processor,
-        total_num_steps,
-    )
+    if cfg.training_mode in ["kd", "kd_l"]:
+        LOG.info("train using knowledge distillation")
+        teacher_model_config = AutoConfig.from_pretrained(cfg.teacher_model)
+        teacher_model = AutoModelForCausalLM.from_pretrained(cfg.teacher_model, config=teacher_model_config, torch_dtype="auto", device_map="auto")
+        #print(teacher_model)
+        if torch.cuda.device_count() > 1 and int(os.getenv("WORLD_SIZE", "1")) == 1:
+            setattr(teacher_model, "is_parallelizable", True)
+            setattr(teacher_model, "model_parallel", True)
+        if cfg.only_train_extra_module and cfg.only_train_extra_module is True:
+            model.freeze_non_extra_parameters()
+        trainer = setup_trainer(
+            cfg,
+            train_dataset,
+            eval_dataset,
+            (model, teacher_model),
+            tokenizer,
+            processor,
+            total_num_steps,
+        )
+    else:
+        trainer = setup_trainer(
+            cfg,
+            train_dataset,
+            eval_dataset,
+            (model, model_ref, peft_config),
+            tokenizer,
+            processor,
+            total_num_steps,
+        )
 
     if cfg.fix_untrained_tokens:
         fix_untrained_tokens(model, tokenizer, train_dataset)
