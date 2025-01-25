@@ -3,7 +3,7 @@
 #SBATCH --time=02:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu_4_a100
-#SBATCH --job-name=ctanama-eval
+#SBATCH --job-name=ctanama-train
 #SBATCH --constraint=LSDF
 #SBATCH --ntasks=1 ### maybe 2 or 4
 #SBATCH --mail-user="calvin.tanama@student.kit.edu"
