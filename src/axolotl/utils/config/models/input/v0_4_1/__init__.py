@@ -571,6 +571,7 @@ class DistillationConfig(BaseModel):
     training_mode: Optional[str] = None
     teacher_model: Optional[str] = None
     only_train_extra_module: Optional[bool] = None
+    trainable_decoder_indices: Optional[List[int]] = None
     prune_start_index: Optional[int] = None
     prune_end_index: Optional[int] = None
     temperature: Optional[float] = None

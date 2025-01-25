@@ -254,7 +254,7 @@ class LoRAMatrices(nn.Module):
         self.lora_b = nn.Linear(r, out_features, bias=True)
 
     def forward(self, hidden_states: torch.Tensor):
-        return self.lora_b(self.lora_a(hidden_states))
+        return self.lora_b(self.lora_a(hidden_states)) # + hidden_states
         
 
 class Phi3Attention(nn.Module):
@@ -1420,6 +1420,22 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
 
         for layer in self.model.layers:
             if isinstance(layer, Phi3WithExtraModuleDecoderLayer):
+                for param in layer.parameters():
+                    param.requires_grad = True
+    
+    def freeze_decoder_layer_except(self, decoder_indices):
+        for index in decoder_indices:
+            if index < 0 or index > len(self.model.layers) - 1:
+                raise Exception("Layer indices to be trained out of bound")
+
+        for param in self.model.parameters():
+            param.requires_grad = False
+        
+        for param in self.lm_head.parameters():
+            param.requires_grad = False
+
+        for index, layer in enumerate(self.model.layers):
+            if index in decoder_indices:
                 for param in layer.parameters():
                     param.requires_grad = True
 

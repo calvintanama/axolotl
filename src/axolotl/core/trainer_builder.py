@@ -804,7 +804,7 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
             outputs_student = model(**inputs)
         student_loss = outputs_student.loss
 
-        print("student loss ", student_loss)
+        #print("student loss ", student_loss)
         # compute teacher output
         with torch.no_grad():
             if self.training_mode == "kd_l":
@@ -821,7 +821,7 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         loss_logits = (loss_function(
             F.log_softmax(outputs_student.logits / self.temperature, dim=-1),
             F.softmax(outputs_teacher.logits / self.temperature, dim=-1)) * (self.temperature ** 2)) / self.sequence_len
-        print("logits loss ", loss_logits)
+        #print("logits loss ", loss_logits)
         # Return weighted student loss
         if self.training_mode == "kd_l":
             layer_loss_function = nn.L1Loss()
@@ -829,7 +829,7 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
                 new_module_hidden_state, 
                 pruned_module_hidden_state
             )
-            print("layer loss ", layer_loss)
+            #print("layer loss ", layer_loss)
             loss = self.alpha * student_loss + self.beta * loss_logits + self.gamma * layer_loss
         else:
             loss = self.alpha * student_loss + self.beta * loss_logits
