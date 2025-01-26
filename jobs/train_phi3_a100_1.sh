@@ -14,7 +14,7 @@ user_dir="/home/kit/anthropomatik/cd7437"
 cd "$user_dir"
 ### Load conda environment
 source .bashrc
-conda activate llmpruning_gcc
+conda activate llmpruning_gcc2
 ### Change to the working directory
 cd llmpruning/axolotl
 ### Run training
