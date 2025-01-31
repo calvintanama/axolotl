@@ -294,7 +294,7 @@ class Phi3WithExtraModuleConfig(Phi3Config):
         if self.extra_module is None:
             return
         
-        if self.extra_module == "lora":
+        if self.extra_module == "lora" or self.extra_module == "lora_layer":
             if self.r is None:
                 raise ValueError(
                     f"If lora is selected, `r` needs to have value, but got None"

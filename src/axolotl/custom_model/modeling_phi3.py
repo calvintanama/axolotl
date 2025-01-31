@@ -897,6 +897,27 @@ class Phi3WithExtraModuleDecoderLayer(Phi3DecoderLayer):
     def reset_extra_module(self):
         self.self_attn.reset_extra_module()
 
+class LoRAExtraModuleLayer(nn.Module):
+    def __init__(self, config: Phi3WithExtraModuleConfig):
+        super().__init__()
+        self.config = config
+        self.lora = LoRAMatrices(config.hidden_size, config.hidden_size, config.r)
+    
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        **kwargs,
+    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+        hidden_states = self.lora(hidden_states)
+        outputs = (hidden_states,)
+        return outputs
+
+
 
 PHI3_START_DOCSTRING = r"""
     This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
@@ -1386,12 +1407,13 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
     def __init__(self, config: Phi3WithExtraModuleConfig):
         super().__init__(config)
         self.config = config
-        if config.extra_module == "lora":
+        if config.extra_module == "lora" or config.extra_module == "lora_layer":
             self.insert_extra_layers(config.extra_module, config.r, config.num_extra_module, config.prune_start_index, config.prune_end_index)
 
     def insert_extra_layers(self, extra_module: str, r: int, num_extra_module: int, prune_start_index: int, prune_end_index):
         self.config.extra_module = extra_module
-        self.config.r = r
+        if extra_module == "lora" or extra_module == "lora_layer":
+            self.config.r = r
         self.config.num_extra_module = num_extra_module
         self.config.prune_start_index = prune_start_index
         self.config.prune_end_index = prune_end_index
@@ -1405,11 +1427,16 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
         logger.warning_once(
             warning_msg.format(str(self.config.num_extra_module), self.config.extra_module, str(self.config.prune_start_index), str(self.config.prune_end_index))
         )
-        for i in range(self.config.num_extra_module):
-            self.model.layers.insert(self.config.prune_start_index, Phi3WithExtraModuleDecoderLayer(self.config, self.config.prune_start_index))
+        
+        if self.extra_module == "lora":
+            for i in range(self.config.num_extra_module):
+                self.model.layers.insert(self.config.prune_start_index, Phi3WithExtraModuleDecoderLayer(self.config, self.config.prune_start_index))
 
-        for idx, layer in enumerate(self.model.layers):
-            layer.self_attn.layer_idx = idx
+            for idx, layer in enumerate(self.model.layers):
+                layer.self_attn.layer_idx = idx
+        elif self.extra_module == "lora_layer":
+            for i in range(self.config.num_extra_module):
+                self.model.layers.insert(self.config.prune_start_index, LoRAExtraModuleLayer(self.config))
 
     def freeze_non_extra_parameters(self):
         for param in self.model.parameters():
@@ -1419,7 +1446,7 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
             param.requires_grad = False
 
         for layer in self.model.layers:
-            if isinstance(layer, Phi3WithExtraModuleDecoderLayer):
+            if isinstance(layer, Phi3WithExtraModuleDecoderLayer) or isinstance(layer, LoRAExtraModuleLayer):
                 for param in layer.parameters():
                     param.requires_grad = True
     
