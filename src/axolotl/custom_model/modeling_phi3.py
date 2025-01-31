@@ -902,6 +902,7 @@ class LoRAExtraModuleLayer(nn.Module):
         super().__init__()
         self.config = config
         self.lora = LoRAMatrices(config.hidden_size, config.hidden_size, config.r)
+        self.reset_extra_module()
     
     def forward(
         self,
@@ -916,6 +917,10 @@ class LoRAExtraModuleLayer(nn.Module):
         hidden_states = self.lora(hidden_states)
         outputs = (hidden_states,)
         return outputs
+
+    def reset_extra_module(self):
+        nn.init.zeros_(self.lora.lora_a.weight)
+        nn.init.normal_(self.lora.lora_b.weight)
 
 
 
