@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --time=00:30:00
 #SBATCH --gres=gpu:2
-#SBATCH --partition=accelerate
+#SBATCH --partition=accelerated
 #SBATCH --job-name=ctanama-train
 #SBATCH --constraint=LSDF
 #SBATCH --ntasks=1 ### maybe 2 or 4
