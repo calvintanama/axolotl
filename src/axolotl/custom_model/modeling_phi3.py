@@ -1413,9 +1413,9 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
         super().__init__(config)
         self.config = config
         if config.extra_module == "lora" or config.extra_module == "lora_layer":
-            self.insert_extra_layers(config.extra_module, config.r, config.num_extra_module, config.prune_start_index, config.prune_end_index)
+            self.insert_extra_layers(config.extra_module, config.num_extra_module, config.prune_start_index, config.prune_end_index, r=config.r)
 
-    def insert_extra_layers(self, extra_module: str, r: int, num_extra_module: int, prune_start_index: int, prune_end_index):
+    def insert_extra_layers(self, extra_module: str, num_extra_module: int, prune_start_index: int, prune_end_index: int, r:int = None):
         self.config.extra_module = extra_module
         if extra_module == "lora" or extra_module == "lora_layer":
             self.config.r = r
