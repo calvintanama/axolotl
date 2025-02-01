@@ -1433,13 +1433,13 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
             warning_msg.format(str(self.config.num_extra_module), self.config.extra_module, str(self.config.prune_start_index), str(self.config.prune_end_index))
         )
         
-        if self.extra_module == "lora":
+        if extra_module == "lora":
             for i in range(self.config.num_extra_module):
                 self.model.layers.insert(self.config.prune_start_index, Phi3WithExtraModuleDecoderLayer(self.config, self.config.prune_start_index))
 
             for idx, layer in enumerate(self.model.layers):
                 layer.self_attn.layer_idx = idx
-        elif self.extra_module == "lora_layer":
+        elif extra_module == "lora_layer":
             for i in range(self.config.num_extra_module):
                 self.model.layers.insert(self.config.prune_start_index, LoRAExtraModuleLayer(self.config))
 
