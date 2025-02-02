@@ -724,7 +724,7 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
                 return_outputs=return_outputs,
                 num_items_in_batch=num_items_in_batch,
             )
-        elif self.training_mode is not None:
+        elif self.training_mode in ["kd", "kd_l"]:
             return self.kd_compute_loss(
                 model,
                 inputs,
