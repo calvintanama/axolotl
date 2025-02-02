@@ -71,8 +71,8 @@ def train(
 
     #print(cfg)
 
-    if cfg.training_mode and cfg.training_mode in ["kd", "kd_l"]:
-        register_to_auto_class()
+    #if cfg.training_mode and cfg.training_mode in ["kd", "kd_l"]:
+    register_to_auto_class()
 
     tokenizer = load_tokenizer(cfg)
     processor = None
