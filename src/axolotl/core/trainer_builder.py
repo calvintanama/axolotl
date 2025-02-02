@@ -713,9 +713,9 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         #     outputs = model(**inputs)
         #     loss = trainer_weighted_loss(outputs, labels, shift_labels=True)
         #     return (loss, outputs) if return_outputs else loss
-        print("(Trainer) student model device ", self.model.device)
-        print("(Trainer) teacher model device ", self.teacher_model.device)
-        print("(Trainer) training mode ", self.training_mode)
+        #print("(Trainer) student model device ", self.model.device)
+        #print("(Trainer) teacher model device ", self.teacher_model.device)
+        #print("(Trainer) training mode ", self.training_mode)
 
         if self.args.orpo_alpha:
             return self.orpo_compute_loss(
