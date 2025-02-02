@@ -147,6 +147,9 @@ def train(
             total_num_steps,
         )
     else:
+        print("not training with KL")
+        if cfg.only_train_extra_module and cfg.only_train_extra_module is True:
+            model.freeze_non_extra_parameters()
         trainer = setup_trainer(
             cfg,
             train_dataset,
