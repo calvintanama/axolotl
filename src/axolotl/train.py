@@ -137,7 +137,8 @@ def train(
         teacher_model = AutoModelForCausalLM.from_pretrained(
             cfg.teacher_model,
             config=teacher_model_config,
-            device_map="auto"
+            device_map="auto",
+            torch_dtype=torch.bfloat16
         )
         if torch.cuda.device_count() > 1 and int(os.getenv("WORLD_SIZE", "1")) == 1:
             setattr(teacher_model, "is_parallelizable", True)
