@@ -128,13 +128,16 @@ def train(
 
     if cfg.training_mode in ["kd", "kd_l"]:
         LOG.info("train using knowledge distillation")
-        teacher_model_config = AutoConfig.from_pretrained(cfg.teacher_model)
+        teacher_model_config = AutoConfig.from_pretrained(
+            cfg.teacher_model,
+            use_cache=False,
+            attn_implementation="flash_attention_2",
+            dtype="bfloat16"
+        )
         teacher_model = AutoModelForCausalLM.from_pretrained(
             cfg.teacher_model,
             config=teacher_model_config,
-            device_map="auto",
-            attn_implementation="flash_attention_2",
-            dtype="bfloat16"
+            device_map="auto"
         )
         if torch.cuda.device_count() > 1 and int(os.getenv("WORLD_SIZE", "1")) == 1:
             setattr(teacher_model, "is_parallelizable", True)
