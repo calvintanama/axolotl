@@ -133,7 +133,6 @@ def train(
             cfg.teacher_model,
             config=teacher_model_config,
             device_map="auto",
-            use_cache=False, 
             attn_implementation="flash_attention_2",
             dtype="bfloat16"
         )
