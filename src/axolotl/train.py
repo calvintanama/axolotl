@@ -26,6 +26,7 @@ from axolotl.utils.freeze import freeze_layers_except
 from axolotl.utils.models import load_model, load_processor, load_tokenizer
 from axolotl.utils.trainer import setup_trainer
 from axolotl.utils.custom_model import register_to_auto_class
+from axolotl.monkeypatch.multipack import patch_for_multipack
 
 try:
     from optimum.bettertransformer import BetterTransformer
@@ -134,6 +135,8 @@ def train(
             attn_implementation="flash_attention_2",
             dtype="bfloat16"
         )
+        if cfg.sample_packing is True:
+            patch_for_multipack(teacher_model_config.model_type, "Phi3ForCausalLM", False)
         teacher_model = AutoModelForCausalLM.from_pretrained(
             cfg.teacher_model,
             config=teacher_model_config,
@@ -143,10 +146,10 @@ def train(
         if torch.cuda.device_count() > 1 and int(os.getenv("WORLD_SIZE", "1")) == 1:
             setattr(teacher_model, "is_parallelizable", True)
             setattr(teacher_model, "model_parallel", True)
-        if cfg.only_train_extra_module and cfg.only_train_extra_module is True:
-            model.freeze_non_extra_parameters()
-        if cfg.trainable_decoder_indices and len(cfg.trainable_decoder_indices) > 0:
-            model.freeze_decoder_layer_except(cfg.trainable_decoder_indices)
+        #if cfg.only_train_extra_module and cfg.only_train_extra_module is True:
+        #    model.freeze_non_extra_parameters()
+        #if cfg.trainable_decoder_indices and len(cfg.trainable_decoder_indices) > 0:
+        #    model.freeze_decoder_layer_except(cfg.trainable_decoder_indices)
         trainer = setup_trainer(
             cfg,
             train_dataset,
@@ -158,8 +161,8 @@ def train(
         )
     else:
         print("not training with KL")
-        if cfg.only_train_extra_module and cfg.only_train_extra_module is True:
-            model.freeze_non_extra_parameters()
+        #if cfg.only_train_extra_module and cfg.only_train_extra_module is True:
+        #    model.freeze_non_extra_parameters()
         trainer = setup_trainer(
             cfg,
             train_dataset,
