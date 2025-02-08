@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --time=06:00:00
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:1
 #SBATCH --partition=accelerated
 #SBATCH --job-name=ctanama-train
 #SBATCH --constraint=LSDF
