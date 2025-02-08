@@ -21,4 +21,4 @@ cd "$workspace_dir"
 cd axolotl
 ### Run training
 unset LD_LIBRARY_PATH
-accelerate launch -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_22_29_a100_4_resume.yaml
+accelerate launch --num_processes 1 -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_22_29_a100_4_resume.yaml
