@@ -1816,9 +1816,10 @@ class HFCausalTrainerBuilder(TrainerBuilderBase):
             "padding": True,  # True/"longest" is the default
         }
         if self.cfg.pad_to_sequence_len:
-            data_collator_kwargs["pad_to_multiple_of"] = 64 * math.ceil(
+            data_collator_kwargs["max_length"] = 64 * math.ceil(
                 self.cfg.sequence_len / 64
             )
+            data_collator_kwargs["padding"] = "max_length"
         else:
             # A100 is best at 64, while others at 8. Let's use the larger so we don't have to check
             # https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html

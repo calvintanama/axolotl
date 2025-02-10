@@ -79,6 +79,8 @@ class DataCollatorForSeq2Seq:
                         // self.pad_to_multiple_of
                         * self.pad_to_multiple_of
                     )
+                elif self.max_length is not None:
+                    max_feature_length = self.max_length
 
                 padding_side = self.tokenizer.padding_side
                 for feature in features:
