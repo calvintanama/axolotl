@@ -28,7 +28,7 @@ unfrozen_parameters:
 
 sequence_len: 4096
 sample_packing: true
-eval_sample_packing: false
+eval_sample_packing: true
 pad_to_sequence_len: true
 pretrain_multipack_attn: true
 
