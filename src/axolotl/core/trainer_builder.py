@@ -435,7 +435,7 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         self.temperature = temperature
         self.prune_start_index = prune_start_index
         self.prune_end_index = prune_end_index
-        if self.teacher_model is not None:
+        if teacher_model is not None:
             
             # self._move_model_to_device(self.teacher_model,self.model.device)
             self.teacher_model = self.accelerator.prepare_model(teacher_model, evaluation_mode=True)
