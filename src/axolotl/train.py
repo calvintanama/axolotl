@@ -143,6 +143,8 @@ def train(
             device_map="auto",
             torch_dtype=torch.bfloat16
         )
+        for name, param in teacher_model.named_parameters():
+            param.requires_grad = False
         if torch.cuda.device_count() > 1 and int(os.getenv("WORLD_SIZE", "1")) == 1:
             setattr(teacher_model, "is_parallelizable", True)
             setattr(teacher_model, "model_parallel", True)
