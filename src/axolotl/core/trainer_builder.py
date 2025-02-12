@@ -428,7 +428,6 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         self.train_data_collator = self.data_collator
         self._stored_metrics = defaultdict(lambda: defaultdict(list))
         self.training_mode = training_mode
-        self.teacher_model = teacher_model
         self.sequence_len = sequence_len
         self.alpha = alpha
         self.beta = beta
@@ -439,6 +438,7 @@ class AxolotlTrainer(SchedulerMixin, Trainer):
         if self.teacher_model is not None:
             
             # self._move_model_to_device(self.teacher_model,self.model.device)
+            self.teacher_model = self.accelerator.prepare_model(teacher_model, evaluation_mode=True)
             self.teacher_model.eval()
         if self.args.orpo_alpha:
             self.loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
