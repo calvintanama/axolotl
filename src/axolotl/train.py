@@ -140,7 +140,6 @@ def train(
         teacher_model = AutoModelForCausalLM.from_pretrained(
             cfg.teacher_model,
             config=teacher_model_config,
-            device_map="auto",
             torch_dtype=torch.bfloat16
         )
         for name, param in teacher_model.named_parameters():
