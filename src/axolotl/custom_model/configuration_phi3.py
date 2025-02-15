@@ -257,6 +257,7 @@ class Phi3WithExtraModuleConfig(Phi3Config):
         extra_module=None,
         r=None,
         num_extra_module=None,
+        residual=None,
         **kwargs,
     ):
         super().__init__(
@@ -288,6 +289,7 @@ class Phi3WithExtraModuleConfig(Phi3Config):
         self.prune_end_index = prune_end_index
         self.extra_module = extra_module
         self.r = r
+        self.residual = residual
         self.num_extra_module = num_extra_module
 
     def _extra_module_validation(self):

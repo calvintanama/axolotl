@@ -914,9 +914,11 @@ class LoRAExtraModuleLayer(nn.Module):
         use_cache: Optional[bool] = False,
         **kwargs,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
-        hidden_states = self.lora(hidden_states)
-        outputs = (hidden_states,)
-        return outputs
+        lora_output = self.lora(hidden_states)
+        outputs = (lora_output,)
+        if self.config.residual and self.config.residual == True:
+            outputs = ((hidden_states + lora_output),)
+        return outputs 
 
     def reset_extra_module(self):
         nn.init.zeros_(self.lora.lora_a.weight)
@@ -1412,13 +1414,21 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
     def __init__(self, config: Phi3WithExtraModuleConfig):
         super().__init__(config)
         self.config = config
-        if config.extra_module == "lora" or config.extra_module == "lora_layer":
-            self.insert_extra_layers(config.extra_module, config.num_extra_module, config.prune_start_index, config.prune_end_index, r=config.r)
+        if config.extra_module == "lora" or config.extra_module == "lora_layer" or config.extra_module == "lora_layer_residual":
+            self.insert_extra_layers(
+                config.extra_module, 
+                config.num_extra_module, 
+                config.prune_start_index, 
+                config.prune_end_index, 
+                r=config.r
+            )
 
-    def insert_extra_layers(self, extra_module: str, num_extra_module: int, prune_start_index: int, prune_end_index: int, r:int = None):
+    def insert_extra_layers(self, extra_module: str, num_extra_module: int, prune_start_index: int, prune_end_index: int, r: int = None, residual: bool = None):
         self.config.extra_module = extra_module
         if extra_module == "lora" or extra_module == "lora_layer":
             self.config.r = r
+            if residual and residual == True:
+                self.config.residual = residual
         self.config.num_extra_module = num_extra_module
         self.config.prune_start_index = prune_start_index
         self.config.prune_end_index = prune_end_index
