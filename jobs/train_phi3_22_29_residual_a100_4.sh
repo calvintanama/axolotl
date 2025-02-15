@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --time=00:30:00
+#SBATCH --time=48:00:00
 #SBATCH --gres=gpu:4
 #SBATCH --partition=accelerated
 #SBATCH --job-name=ctanama-train
@@ -21,4 +21,4 @@ cd "$workspace_dir"
 cd axolotl
 ### Run training
 unset LD_LIBRARY_PATH
-accelerate launch --config_file "$workspace_dir/axolotl/accelerate/multi_gpu_config.yaml" -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_a100_4.yaml
+accelerate launch --config_file "$workspace_dir/axolotl/accelerate/multi_gpu_config.yaml" -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_22_29_residual_a100_4.yaml
