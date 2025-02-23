@@ -25,6 +25,13 @@ chat_template:
 
 unfrozen_parameters:
   - model.layers.22.lora.*
+  - model.layers.23.lora.*
+  - model.layers.24.lora.*
+  - model.layers.25.lora.*
+  - model.layers.26.lora.*
+  - model.layers.27.lora.*
+  - model.layers.28.lora.*
+  - model.layers.29.lora.*
 
 sequence_len: 4096
 sample_packing: true
