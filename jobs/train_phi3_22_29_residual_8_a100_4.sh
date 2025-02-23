@@ -3,7 +3,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --gres=gpu:4
 #SBATCH --partition=accelerated
-#SBATCH --job-name=residual-normal-ctanama
+#SBATCH --job-name=residual-8-normal-ctanama
 #SBATCH --constraint=LSDF
 #SBATCH --ntasks=1 ### maybe 2 or 4
 #SBATCH --mail-user="calvin.tanama@student.kit.edu"
