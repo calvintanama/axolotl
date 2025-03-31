@@ -291,6 +291,9 @@ class Phi3WithExtraModuleConfig(Phi3Config):
         self.r = r
         self.residual = residual
         self.num_extra_module = num_extra_module
+        #self.num_slstm = num_slstm
+        #self.num_mlstm = num_mlstm
+        #self.slstm_at = slstm_at
 
     def _extra_module_validation(self):
         if self.extra_module is None:
@@ -305,6 +308,23 @@ class Phi3WithExtraModuleConfig(Phi3Config):
                 raise ValueError(
                     f"`r` needs to have value > 0, but got {self.r}"
                 )
+        #elif self.extra_module == "xlstm":
+        #    if self.num_slstm is None or self.num_mlstm is None or self.slstm_at is None:
+        #        raise ValueError(
+        #            f"If xlstm is selected, `num_slstm` and `num_mlstm` and `slstm_at` needs to have value, but got None"
+        #        )
+        #    if self.num_slstm < 0:
+        #        raise ValueError(
+        #            f"`num_slstm` needs to have value >= 0, but got {self.num_slstm}"
+        #        )
+        #    if self.num_mlstm < 0:
+        #        raise ValueError(
+        #            f"`num_mlstm` needs to have value >= 0, but got {self.num_mlstm}"
+        #        )
+        #    if self.num_slstm + self.num_mlstm == 0:
+        #        raise ValueError(
+        #            f"xLSTM module can not be empty, please specify the number of sLSTM and mLSTM block"
+        #        )
         if self.num_extra_module is None:
             raise ValueError(
                 f"`num_extra_module` needs to have value, but got None"

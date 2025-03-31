@@ -46,7 +46,15 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 from .configuration_phi3 import Phi3Config, Phi3WithExtraModuleConfig
-
+#from xlstm import (
+#    xLSTMBlockStack,
+#    xLSTMBlockStackConfig,
+#    mLSTMBlockConfig,
+#    mLSTMLayerConfig,
+#    sLSTMBlockConfig,
+#    sLSTMLayerConfig,
+#    FeedForwardConfig,
+#)
 
 logger = logging.get_logger(__name__)
 
@@ -924,7 +932,47 @@ class LoRAExtraModuleLayer(nn.Module):
         nn.init.zeros_(self.lora.lora_a.weight)
         nn.init.normal_(self.lora.lora_b.weight)
 
+#class XLSTMExtraModuleLayer(nn.Module):
+#    def __init__(self, config: Phi3WithExtraModuleConfig):
+#        super().__init__()
+#        self.config = config
+#        xlstm_config = xLSTMBlockStackConfig(
+#            mlstm_block=mLSTMBlockConfig(
+#                mlstm=mLSTMLayerConfig(
+#                    conv1d_kernel_size=4, qkv_proj_blocksize=4, num_heads=4
+#                )
+#            ),
+#            slstm_block=sLSTMBlockConfig(
+#                slstm=sLSTMLayerConfig(
+#                    backend="cuda",
+#                    num_heads=4,
+#                    conv1d_kernel_size=4,
+#                    bias_init="powerlaw_blockdependent",
+#                ),
+#            feedforward=FeedForwardConfig(proj_factor=1.3, act_fn="gelu"),
+#            ),
+#            context_length=config.max_position_embeddings,
+#            num_blocks=config.num_slstm+config.num_mlstm,
+#            embedding_dim=config.hidden_size,
+#            slstm_at=config.slstm_at,
+#        )
+#        self.xlstm_stack = xLSTMBlockStack(xlstm_config)
 
+#    def forward(
+#        self,
+#        hidden_states: torch.Tensor,
+#        attention_mask: Optional[torch.Tensor] = None,
+#        position_ids: Optional[torch.LongTensor] = None,
+#        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+#        output_attentions: Optional[bool] = False,
+#        use_cache: Optional[bool] = False,
+#        **kwargs,
+#    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+#        xlstm_output = self.xlstm_stack(hidden_states)
+#        outputs = (xlstm_output,)
+#        if self.config.residual and self.config.residual == True:
+#            outputs = ((hidden_states + xlstm_output),)
+#        return outputs
 
 PHI3_START_DOCSTRING = r"""
     This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
@@ -1414,14 +1462,26 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
     def __init__(self, config: Phi3WithExtraModuleConfig):
         super().__init__(config)
         self.config = config
-        if config.extra_module == "lora" or config.extra_module == "lora_layer" or config.extra_module == "lora_layer_residual":
+        if config.extra_module == "lora" or config.extra_module == "lora_layer":
             self.insert_extra_layers(
                 config.extra_module, 
                 config.num_extra_module, 
                 config.prune_start_index, 
                 config.prune_end_index, 
-                r=config.r
+                r=config.r,
+                residual=config.residual
             )
+        #elif config.extra_module == "xlstm":
+        #    self.insert_extra_layers(
+        #        config.extra_module, 
+        #        config.num_extra_module, 
+        #        config.prune_start_index, 
+        #        config.prune_end_index,
+        #        residual=config.residual,
+        #        num_slstm=config.num_slstm,
+        #        num_mlstm=config.num_mlstm,
+        #        slstm_at=config.slstm_at
+        #    )
 
     def insert_extra_layers(self, extra_module: str, num_extra_module: int, prune_start_index: int, prune_end_index: int, r: int = None, residual: bool = None):
         self.config.extra_module = extra_module
@@ -1429,6 +1489,13 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
             self.config.r = r
             if residual and residual == True:
                 self.config.residual = residual
+        #elif extra_module == "xlstm":
+        #    self.config.num_mlstm = num_mlstm
+        #    self.config.num_slstm = num_slstm
+        #    self.config.slstm_at = slstm_at
+        #    if residual and residual == True:
+        #        self.config.residual = residual
+            
         self.config.num_extra_module = num_extra_module
         self.config.prune_start_index = prune_start_index
         self.config.prune_end_index = prune_end_index
@@ -1452,6 +1519,9 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
         elif extra_module == "lora_layer":
             for i in range(self.config.num_extra_module):
                 self.model.layers.insert(self.config.prune_start_index, LoRAExtraModuleLayer(self.config))
+        #elif extra_module == "xlstm":
+        #    for i in range(self.config.num_extra_module):
+        #        self.model.layers.insert(self.config.prune_start_index, XLSTMExtraModuleLayer(self.config))
 
     def freeze_non_extra_parameters(self):
         for param in self.model.parameters():
