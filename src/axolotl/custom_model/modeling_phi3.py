@@ -932,6 +932,28 @@ class LoRAExtraModuleLayer(nn.Module):
         nn.init.zeros_(self.lora.lora_a.weight)
         nn.init.normal_(self.lora.lora_b.weight)
 
+class LSTMExtraModuleLayer(nn.Module):
+    def __init__(self, config: Phi3WithExtraModuleConfig):
+        super().__init__()
+        self.config = config
+        self.lstm = nn.LSTM(config.hidden_size, hidden_size=config.hidden_size, num_layers=config.num_extra_module, batch_first=True, dropout=0.2)
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        **kwargs,
+    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+        lstm_output, _, _ = self.lstm(hidden_states)
+        outputs = (lstm_output,)
+        if self.config.residual and self.config.residual == True:
+            outputs = ((hidden_states + lstm_output),)
+        return outputs
+    
 #class XLSTMExtraModuleLayer(nn.Module):
 #    def __init__(self, config: Phi3WithExtraModuleConfig):
 #        super().__init__()
@@ -1489,6 +1511,9 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
             self.config.r = r
             if residual and residual == True:
                 self.config.residual = residual
+        elif extra_module == "lstm":
+            if residual and residual == True:
+                self.config.residual = residual
         #elif extra_module == "xlstm":
         #    self.config.num_mlstm = num_mlstm
         #    self.config.num_slstm = num_slstm
@@ -1519,6 +1544,8 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
         elif extra_module == "lora_layer":
             for i in range(self.config.num_extra_module):
                 self.model.layers.insert(self.config.prune_start_index, LoRAExtraModuleLayer(self.config))
+        elif extra_module == "lstm":
+            self.model.layers.insert(self.config.prune_start_index, LSTMExtraModuleLayer(self.config))
         #elif extra_module == "xlstm":
         #    for i in range(self.config.num_extra_module):
         #        self.model.layers.insert(self.config.prune_start_index, XLSTMExtraModuleLayer(self.config))
