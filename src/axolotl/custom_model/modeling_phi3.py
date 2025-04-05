@@ -978,7 +978,7 @@ class LSTMExtraModuleLayer(nn.Module):
         use_cache: Optional[bool] = False,
         **kwargs,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
-        lstm_output, _, _ = self.lstm(hidden_states)
+        lstm_output, _ = self.lstm(hidden_states)
         outputs = (lstm_output,)
         if self.config.residual and self.config.residual == True:
             outputs = ((hidden_states + lstm_output),)
