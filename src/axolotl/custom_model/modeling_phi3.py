@@ -932,6 +932,36 @@ class LoRAExtraModuleLayer(nn.Module):
         nn.init.zeros_(self.lora.lora_a.weight)
         nn.init.normal_(self.lora.lora_b.weight)
 
+
+class BottleneckExtraModuleLayer(nn.Module):
+    def __init__(self, config: Phi3WithExtraModuleConfig):
+        super().__init__()
+        self.config = config
+        self.bottleneck = nn.ModuleList([LoRAMatrices(config.hidden_size, config.hidden_size, config.r)])
+        self.reset_extra_module()
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        **kwargs,
+    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+        bottleneck_output = hidden_states
+        for module in self.bottleneck:
+            bottleneck_output = module(bottleneck_output)
+        if self.config.residual and self.config.residual == True:
+            outputs = ((hidden_states + bottleneck_output),)
+        return outputs
+
+    def reset_extra_module(self):
+        for module in self.bottleneck:
+            nn.init.zeros_(self.module.lora_a.weight)
+            nn.init.normal_(self.module.lora_b.weight)
+
 class LSTMExtraModuleLayer(nn.Module):
     def __init__(self, config: Phi3WithExtraModuleConfig):
         super().__init__()
@@ -1484,13 +1514,21 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
     def __init__(self, config: Phi3WithExtraModuleConfig):
         super().__init__(config)
         self.config = config
-        if config.extra_module == "lora" or config.extra_module == "lora_layer":
+        if config.extra_module == "lora" or config.extra_module == "lora_layer" or config.extra_module == "bottleneck":
             self.insert_extra_layers(
                 config.extra_module, 
                 config.num_extra_module, 
                 config.prune_start_index, 
                 config.prune_end_index, 
                 r=config.r,
+                residual=config.residual
+            )
+        elif config.extra_module == "lstm":
+            self.insert_extra_layers(
+                config.extra_module,
+                config.num_extra_module,
+                config.prune_start_index,
+                config.prune_end_index,
                 residual=config.residual
             )
         #elif config.extra_module == "xlstm":
@@ -1507,7 +1545,7 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
 
     def insert_extra_layers(self, extra_module: str, num_extra_module: int, prune_start_index: int, prune_end_index: int, r: int = None, residual: bool = None):
         self.config.extra_module = extra_module
-        if extra_module == "lora" or extra_module == "lora_layer":
+        if extra_module == "lora" or extra_module == "lora_layer" or extra_module == "bottleneck":
             self.config.r = r
             if residual and residual == True:
                 self.config.residual = residual
@@ -1544,6 +1582,8 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
         elif extra_module == "lora_layer":
             for i in range(self.config.num_extra_module):
                 self.model.layers.insert(self.config.prune_start_index, LoRAExtraModuleLayer(self.config))
+        elif extra_module == "bottleneck":
+            self.model.layers.insert(self.config.prune_start_index, BottleneckExtraModuleLayer(self.config))
         elif extra_module == "lstm":
             self.model.layers.insert(self.config.prune_start_index, LSTMExtraModuleLayer(self.config))
         #elif extra_module == "xlstm":
