@@ -959,8 +959,8 @@ class BottleneckExtraModuleLayer(nn.Module):
 
     def reset_extra_module(self):
         for module in self.bottleneck:
-            nn.init.zeros_(self.module.lora_a.weight)
-            nn.init.normal_(self.module.lora_b.weight)
+            nn.init.zeros_(module.lora_a.weight)
+            nn.init.normal_(module.lora_b.weight)
 
 class LSTMExtraModuleLayer(nn.Module):
     def __init__(self, config: Phi3WithExtraModuleConfig):
