@@ -937,7 +937,7 @@ class BottleneckExtraModuleLayer(nn.Module):
     def __init__(self, config: Phi3WithExtraModuleConfig):
         super().__init__()
         self.config = config
-        self.bottleneck = nn.ModuleList([LoRAMatrices(config.hidden_size, config.hidden_size, config.r)])
+        self.bottleneck = nn.ModuleList([LoRAMatrices(config.hidden_size, config.hidden_size, config.r) for i in range(config.num_extra_module)])
         self.reset_extra_module()
 
     def forward(
