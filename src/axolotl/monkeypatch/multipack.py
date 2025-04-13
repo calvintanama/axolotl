@@ -10,7 +10,10 @@ from transformers.integrations import is_deepspeed_zero3_enabled
 from axolotl.monkeypatch.mixtral import patch_mixtral_moe_forward_zero3
 from axolotl.monkeypatch.utils import get_unpad_data
 
+from ..custom_model import modeling_phi3
+
 SUPPORTED_MULTIPACK_MODEL_TYPES = [
+    "phi3_custom",
     "mllama_text_model",
     "llama",
     "llama4",
@@ -41,6 +44,8 @@ def patch_for_multipack(model_type, model_name=None, has_remote_code=False):
         transformers.modeling_flash_attention_utils._get_unpad_data = (  # pylint: disable=protected-access
             get_unpad_data
         )
+    elif model_type == "phi3_custom":
+        modeling_phi3._get_unpad_data = get_unpad_data
 
     if model_type == "mixtral" and is_deepspeed_zero3_enabled():
         patch_mixtral_moe_forward_zero3()
