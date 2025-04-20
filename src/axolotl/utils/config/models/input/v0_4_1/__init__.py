@@ -127,6 +127,7 @@ class PretrainingDataset(BaseModel):
     text_column: Optional[str] = "text"
     type: Optional[str] = "pretrain"
     trust_remote_code: Optional[bool] = False
+    data_files: Optional[List[str]] = None
 
 
 class UserDefinedPrompterType(BaseModel):
