@@ -925,7 +925,10 @@ class LoRAExtraModuleLayer(nn.Module):
         lora_output = self.lora(hidden_states)
         outputs = (lora_output,)
         if self.config.residual and self.config.residual == True:
-            outputs = ((hidden_states + lora_output),)
+            if self.config.residual_type is not None and self.config.residual_type == "hadamard":
+                outputs = ((hidden_states * lora_output),)
+            else:
+                outputs = ((hidden_states + lora_output),)
         return outputs 
 
     def reset_extra_module(self):
@@ -954,7 +957,10 @@ class BottleneckExtraModuleLayer(nn.Module):
         for module in self.bottleneck:
             bottleneck_output = module(bottleneck_output)
         if self.config.residual and self.config.residual == True:
-            outputs = ((hidden_states + bottleneck_output),)
+            if self.config.residual_type is not None and self.config.residual_type == "hadamard":
+                outputs = ((hidden_states * bottleneck_output),)
+            else:
+                outputs = ((hidden_states + bottleneck_output),)
         return outputs
 
     def reset_extra_module(self):
@@ -1543,12 +1549,16 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
         #        slstm_at=config.slstm_at
         #    )
 
-    def insert_extra_layers(self, extra_module: str, num_extra_module: int, prune_start_index: int, prune_end_index: int, r: int = None, residual: bool = None):
+    def insert_extra_layers(self, extra_module: str, num_extra_module: int, prune_start_index: int, prune_end_index: int, r: int = None, residual: bool = None, residual_type: str = None):
         self.config.extra_module = extra_module
         if extra_module == "lora" or extra_module == "lora_layer" or extra_module == "bottleneck":
             self.config.r = r
             if residual and residual == True:
                 self.config.residual = residual
+                if residual_type is not None and residual_type == "hadamard":
+                    self.config.residual_type = "hadamard"
+                else:
+                    self.config.residual_type = None
         elif extra_module == "lstm":
             if residual and residual == True:
                 self.config.residual = residual
