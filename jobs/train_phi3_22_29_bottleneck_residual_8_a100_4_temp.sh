@@ -15,10 +15,10 @@ workspace_dir="/hkfs/work/workspace/scratch/cd7437-llmpruning_temp"
 cd "$user_dir"
 ### Load conda environment
 source .bashrc
-conda activate llmpruning_train_temp
+conda activate llmpruning_train4
 ### Change to the working directory
 cd "$workspace_dir"
-cd axolotl
+cd axolotl_old/axolotl
 ### Run training
 unset LD_LIBRARY_PATH
-accelerate launch --config_file "$workspace_dir/axolotl/accelerate/multi_gpu_config.yaml" -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_22_29_bottleneck_residual_8_a100_4.yaml
+accelerate launch --config_file "$workspace_dir/axolotl_old/axolotl/accelerate/multi_gpu_config.yaml" -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_22_29_bottleneck_residual_8_a100_4.yaml
