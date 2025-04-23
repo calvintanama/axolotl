@@ -258,6 +258,7 @@ class Phi3WithExtraModuleConfig(Phi3Config):
         r=None,
         num_extra_module=None,
         residual=None,
+        residual_type=None,
         **kwargs,
     ):
         super().__init__(
@@ -290,6 +291,7 @@ class Phi3WithExtraModuleConfig(Phi3Config):
         self.extra_module = extra_module
         self.r = r
         self.residual = residual
+        self.residual_type = residual_type
         self.num_extra_module = num_extra_module
         #self.num_slstm = num_slstm
         #self.num_mlstm = num_mlstm

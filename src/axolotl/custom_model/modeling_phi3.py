@@ -956,6 +956,7 @@ class BottleneckExtraModuleLayer(nn.Module):
         bottleneck_output = hidden_states
         for module in self.bottleneck:
             bottleneck_output = module(bottleneck_output)
+        outputs = (bottleneck_output,)
         if self.config.residual and self.config.residual == True:
             if self.config.residual_type is not None and self.config.residual_type == "hadamard":
                 outputs = ((hidden_states * bottleneck_output),)
@@ -988,6 +989,34 @@ class LSTMExtraModuleLayer(nn.Module):
         outputs = (lstm_output,)
         if self.config.residual and self.config.residual == True:
             outputs = ((hidden_states + lstm_output),)
+        return outputs
+
+class Phi3AttentionExtraModuleLayer(nn.Module):
+    def __init__(self, config: Phi3WithExtraModuleConfig):
+        super().__init__()
+        self.config = config
+        self.mha = nn.ModuleList([Phi3Attention(config) for i in range(config.num_extra_module)])
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        **kwargs,
+    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+        mha_output = hidden_states
+        for module in self.mha:
+            module_outputs = module(mha_output, attention_mask, position_ids, past_key_value, output_attentions, use_cache)
+            mha_output = module_outputs[0]
+        outputs = (mha_output,)
+        if self.config.residual and self.config.residual == True:
+            if self.config.residual_type is not None and self.config.residual_type == "hadamard":
+                outputs = ((hidden_states * mha_output),)
+            else:
+                outputs = ((hidden_states + mha_output),)
         return outputs
     
 #class XLSTMExtraModuleLayer(nn.Module):
@@ -1527,7 +1556,8 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
                 config.prune_start_index, 
                 config.prune_end_index, 
                 r=config.r,
-                residual=config.residual
+                residual=config.residual,
+                residual_type=config.residual_type
             )
         elif config.extra_module == "lstm":
             self.insert_extra_layers(
@@ -1536,6 +1566,15 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
                 config.prune_start_index,
                 config.prune_end_index,
                 residual=config.residual
+            )
+        elif config.extra_module == "mha":
+            self.insert_extra_layers(
+                config.extra_module,
+                config.num_extra_module,
+                config.prune_start_index,
+                config.prune_end_index,
+                residual=config.residual,
+                residual_type=config.residual_type
             )
         #elif config.extra_module == "xlstm":
         #    self.insert_extra_layers(
@@ -1562,6 +1601,13 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
         elif extra_module == "lstm":
             if residual and residual == True:
                 self.config.residual = residual
+        elif extra_module == "mha":
+            if residual and residual == True:
+                self.config.residual = residual
+                if residual_type is not None and residual_type == "hadamard":
+                    self.config.residual_type = "hadamard"
+                else:
+                    self.config.residual_type = None
         #elif extra_module == "xlstm":
         #    self.config.num_mlstm = num_mlstm
         #    self.config.num_slstm = num_slstm
@@ -1596,6 +1642,8 @@ class Phi3WithExtraModuleForCausalLM(Phi3ForCausalLM):
             self.model.layers.insert(self.config.prune_start_index, BottleneckExtraModuleLayer(self.config))
         elif extra_module == "lstm":
             self.model.layers.insert(self.config.prune_start_index, LSTMExtraModuleLayer(self.config))
+        elif extra_module == "mha":
+            self.model.layers.insert(self.config.prune_start_index, Phi3AttentionExtraModuleLayer(self.config))
         #elif extra_module == "xlstm":
         #    for i in range(self.config.num_extra_module):
         #        self.model.layers.insert(self.config.prune_start_index, XLSTMExtraModuleLayer(self.config))
