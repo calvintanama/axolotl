@@ -3,7 +3,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --gres=gpu:4
 #SBATCH --partition=accelerated
-#SBATCH --job-name=bottleneck-residual-8-normal-ctanama
+#SBATCH --job-name=mha-residual-1-normal-ctanama
 #SBATCH --constraint=LSDF
 #SBATCH --ntasks=1 ### maybe 2 or 4
 #SBATCH --mail-user="calvin.tanama@student.kit.edu"
@@ -21,4 +21,4 @@ cd "$workspace_dir"
 cd axolotl_old/axolotl
 ### Run training
 unset LD_LIBRARY_PATH
-accelerate launch --config_file "$workspace_dir/axolotl_old/axolotl/accelerate/multi_gpu_config.yaml" -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_22_29_bottleneck_residual_8_a100_4_local.yaml
+accelerate launch --config_file "$workspace_dir/axolotl_old/axolotl/accelerate/multi_gpu_config.yaml" -m axolotl.cli.train ./config_run/phi3_pruned_extra_pretrain_22_29_mha_residual_1_a100_4_local.yaml
