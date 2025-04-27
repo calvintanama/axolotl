@@ -995,7 +995,7 @@ class Phi3AttentionExtraModuleLayer(nn.Module):
     def __init__(self, config: Phi3WithExtraModuleConfig):
         super().__init__()
         self.config = config
-        self.mha = nn.ModuleList([Phi3Attention(config) for i in range(config.num_extra_module)])
+        self.mha = nn.ModuleList([PHI3_ATTENTION_CLASSES[config._attn_implementation](config) for i in range(config.num_extra_module)])
 
     def forward(
         self,
